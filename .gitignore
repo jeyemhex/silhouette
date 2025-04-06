@@ -1,0 +1,8 @@
+# Vim temporary files
+.*.sw*
+
+# SQLite Databases
+*.sqlite
+
+# The local lua environment
+/backend/lua
