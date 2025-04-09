@@ -8,9 +8,19 @@
     This code is distributed under the MIT license.
 ----------------------------------------------------------------------------- ]]
 local libm = require "core/library_manager"
+local playm = require "core/playback_manager"
 
 function main()
-    libm.initialise(arg[1], "music_library.sqlite")
+    local current_song = playm:new()
+    current_song:load(arg[1])
+
+    current_song:start()
+
+    while current_song.state == PLAYING do
+        current_song:play()
+    end
+
+    current_song:unload()
 end
 
 main()
