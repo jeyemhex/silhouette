@@ -12,7 +12,21 @@ local socket = require("socket")
 local playm = require("lib/playback_manager")
 
 local current_song = playm:new()
-local filename
+local filename = arg[1]
+
+local function get_mime_type(file_path)
+    local ext = file_path:match("^.+%.(.+)$")
+    if ext == "html" then return "text/html"
+    elseif ext == "css" then return "text/css"
+    elseif ext == "js" then return "application/javascript"
+    elseif ext == "json" then return "application/json"
+    elseif ext == "png" then return "image/png"
+    elseif ext == "jpg" or ext == "jpeg" then return "image/jpeg"
+    elseif ext == "ico" then return "image/x-icon"
+    else return "application/octet-stream"
+    end
+end
+
 
 local function playback_task()
     while true do
@@ -29,39 +43,96 @@ local function http_handler(skt)
     local line = skt:receive()
     if not line then return end
 
-    -- Very basic routing: check the first line of the request
-    if line:match("GET /pause") then
-        current_song.state = PAUSED
-        print("Command: PAUSE")
-    elseif line:match("GET /play") then
-        if current_song.state == UNLOADED then
-            current_song:load(filename)
-            current_song:start()
-        elseif current_song.state == STOPPED then
-            current_song:start()
-        else
-            current_song.state = PLAYING
-        end
-        print("Command: PLAY")
-    elseif line:match("GET /stop") then
-        current_song:stop()
-        print("Command: STOP")
+    local method, path = line:match("^(%u+)%s+(%S+)")
+    
+    -- Consume remaining headers
+    while true do
+        local header = skt:receive()
+        if not header or header == "" then break end
     end
 
-    -- Send response (same as before)
-    print("Web Request: " .. line)
+    if not method or not path then return end
 
-    -- Prepare a simple text response
-    local body = "Hello from Silhouette Music Player!"
+    print(string.format("Request: %s %s", method, path))
 
-    -- Send HTTP Headers
-    skt:send("HTTP/1.1 200 OK\r\n")
-    skt:send("Content-Type: text/plain\r\n")
-    skt:send("Content-Length: " .. #body .. "\r\n")
+    local status_code = 200
+    local status_text = "OK"
+    local content_type = "text/plain"
+    local body = ""
+
+    if method == "GET" then
+        if path:match("^/api/") then
+            if path == "/api/play" then
+                if current_song.state == UNLOADED then
+                    if filename then
+                        current_song:load(filename)
+                        current_song:start()
+                    end
+                elseif current_song.state == STOPPED then
+                    current_song:start()
+                else
+                    current_song.state = PLAYING
+                end
+                body = "OK"
+
+            elseif path == "/api/pause" then
+                current_song:pause()
+                body = "OK"
+
+            elseif path == "/api/stop" then
+                current_song:stop()
+                body = "OK"
+
+            elseif path == "/api/status" then
+                content_type = "application/json"
+                local safe_filename = (current_song.filename or ""):gsub('"', '\\"')
+                body = string.format('{"filename": "%s", "state": %d}', safe_filename, current_song.state)
+
+            else
+                status_code = 404
+                status_text = "Not Found"
+                body = "Not Found"
+
+            end
+        else
+            -- Static File Serving
+            -- Prevent directory traversal
+            if path:match("%.%.") then
+                status_code = 403
+                status_text = "Forbidden"
+                body = "Forbidden"
+            else
+                local serve_path = path
+                -- Default to index.html if root is requested
+                if serve_path == "/" then serve_path = "/index.html" end
+
+                -- Construct local file path (relative to project root)
+                local file_path = "data/web" .. serve_path
+
+                local f = io.open(file_path, "rb")
+                if f then
+                    body = f:read("*a")
+                    f:close()
+                    content_type = get_mime_type(file_path)
+                else
+                    status_code = 404
+                    status_text = "Not Found"
+                    body = "404 Not Found: " .. file_path
+                end
+            end
+        end
+    else
+        status_code = 405
+        status_text = "Method Not Allowed"
+        body = "Method Not Allowed"
+    end
+
+    -- Send HTTP Response
+    skt:send(string.format("HTTP/1.1 %d %s\r\n", status_code, status_text))
+    skt:send(string.format("Content-Type: %s\r\n", content_type))
+    skt:send(string.format("Content-Length: %d\r\n", #body))
     skt:send("Connection: close\r\n")
-    skt:send("\r\n") -- End of headers
-
-    -- Send Body
+    skt:send("\r\n")
     skt:send(body)
 end
 

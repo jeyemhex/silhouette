@@ -61,6 +61,10 @@ function playback_manager:play()
     end
 end
 
+function playback_manager:pause()
+    self.state = PAUSED
+end
+
 function playback_manager:stop()
     self.cursor = 1
     self.state = STOPPED
