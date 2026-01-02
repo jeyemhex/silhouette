@@ -7,20 +7,79 @@
 --------------------------------------------------------------------------------
     This code is distributed under the MIT license.
 ----------------------------------------------------------------------------- ]]
-local libm = require "core/library_manager"
-local playm = require "core/playback_manager"
+local copas = require("copas")
+local socket = require("socket")
+local playm = require("core/playback_manager")
 
-function main()
-    local current_song = playm:new()
-    current_song:load(arg[1])
+local current_song = playm:new()
+local filename
 
-    current_song:start()
+local function playback_task()
+    while true do
+        -- Only pump audio if we are in the PLAYING state
+        if current_song.state == PLAYING then
+            current_song:play()
+        end
+        -- Always sleep to keep the CPU cool and let the web server work
+        copas.sleep(0.01)
+    end
+end
 
-    while current_song.state == PLAYING do
-        current_song:play()
+local function http_handler(skt)
+    local line = skt:receive()
+    if not line then return end
+
+    -- Very basic routing: check the first line of the request
+    if line:match("GET /pause") then
+        current_song.state = PAUSED
+        print("Command: PAUSE")
+    elseif line:match("GET /play") then
+        if current_song.state == UNLOADED then
+            current_song:load(filename)
+            current_song:start()
+        elseif current_song.state == STOPPED then
+            current_song:start()
+        else
+            current_song.state = PLAYING
+        end
+        print("Command: PLAY")
+    elseif line:match("GET /stop") then
+        current_song:stop()
+        print("Command: STOP")
     end
 
-    current_song:unload()
+    -- Send response (same as before)
+    print("Web Request: " .. line)
+
+    -- Prepare a simple text response
+    local body = "Hello from Silhouette Music Player!"
+
+    -- Send HTTP Headers
+    skt:send("HTTP/1.1 200 OK\r\n")
+    skt:send("Content-Type: text/plain\r\n")
+    skt:send("Content-Length: " .. #body .. "\r\n")
+    skt:send("Connection: close\r\n")
+    skt:send("\r\n") -- End of headers
+
+    -- Send Body
+    skt:send(body)
+end
+
+-- 3. Main Entry
+function main()
+    -- Create a server listening on all interfaces, port 8080
+    local server = socket.bind("*", 8080)
+
+    filename = arg[1]
+
+    -- Tell Copas: "When 'server' gets a hit, run 'http_handler'"
+    copas.addserver(server, http_handler)
+
+    -- Add our music loop (as before)
+    copas.addthread(playback_task)
+
+    print("Server running on http://localhost:8080")
+    copas.loop()
 end
 
 main()

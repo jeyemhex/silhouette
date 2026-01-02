@@ -24,6 +24,14 @@ function playback_manager:new (o)
     o = o or {}   -- create object if user does not provide one
     setmetatable(o, self)
     self.__index = self
+
+    self.filename = ""
+    self.audio_data = ""
+    self.state = UNLOADED
+    self.buffer_length = 0
+    self.cursor = 0
+    self.player = nil
+
     return o
 end
 
@@ -56,7 +64,10 @@ end
 function playback_manager:stop()
     self.cursor = 1
     self.state = STOPPED
-    self:player:close()
+    if self.player then
+        self.player:close()
+        self.player = nil
+    end
 end
 
 function playback_manager:unload()
