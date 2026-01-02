@@ -9,7 +9,7 @@
 ----------------------------------------------------------------------------- ]]
 local copas = require("copas")
 local socket = require("socket")
-local playm = require("core/playback_manager")
+local playm = require("lib/playback_manager")
 
 local current_song = playm:new()
 local filename

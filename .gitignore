@@ -5,4 +5,7 @@
 *.sqlite
 
 # The local lua environment
-/backend/lua
+/lua53
+
+# Test music
+/data/music

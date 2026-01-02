@@ -7,7 +7,7 @@
     This code is distributed under the MIT license.
 ----------------------------------------------------------------------------- ]]
 local lfs = require "lfs"
-local dbm = require "core/database_manager"
+local dbm = require "lib/database_manager"
 
 local library_manager = {}
 
