@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pi-Audio Remote</title>
+    <style>
+        :root {
+            --bg-chassis: #0f0f11;
+            --bg-panel: #18181b;
+            --bg-deck: #121214;
+            --text-main: #d1d1d1;
+            --text-muted: #666;
+            --accent-led: #00ff41;
+            --border-subtle: #2d2d31;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+            --spine-height: 40px; /* Slightly taller for legibility */
+            --deck-height: 70px;
+            --header-height: 50px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-chassis);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- CONTROL BAR (SORTING) --- */
+        #controls {
+            height: var(--header-height);
+            background: var(--bg-chassis);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            z-index: 20;
+        }
+
+        .app-title {
+            font-weight: bold;
+            letter-spacing: -0.5px;
+            font-size: 0.9rem;
+        }
+
+        /* Technical-looking Dropdown */
+        select.sort-select {
+            background: #000;
+            color: var(--accent-led);
+            border: 1px solid #333;
+            padding: 5px 10px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            outline: none;
+            border-radius: 2px;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+            text-transform: uppercase;
+        }
+
+        /* --- THE SHELF (LIBRARY) --- */
+        #shelf {
+            flex: 1;
+            overflow-y: scroll;
+            padding-bottom: var(--deck-height);
+            scrollbar-width: thin;
+            scrollbar-color: #333 #111;
+        }
+
+        .section-header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 15, 17, 0.95);
+            color: var(--accent-led);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 6px 12px;
+            border-bottom: 1px solid #333;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* --- THE ALBUM COMPONENT --- */
+        .album {
+            background: var(--bg-panel);
+            margin-bottom: 1px;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: var(--spine-height) 0fr;
+            transition: grid-template-rows 0.3s ease-out, background 0.2s;
+            border-left: 4px solid var(--spine-color, #444);
+        }
+
+        .album.expanded {
+            grid-template-rows: var(--spine-height) 1fr;
+            background: #232326;
+        }
+
+        .album-header {
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            height: var(--spine-height);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .album-info-inline {
+            display: flex;
+            gap: 10px;
+            align-items: baseline;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .primary-text { font-weight: 600; font-size: 0.9rem; color: #fff; }
+        .secondary-text { color: var(--text-muted); font-size: 0.85rem; }
+        .meta-text { margin-left: auto; font-family: var(--font-mono); font-size: 0.75rem; color: #555; }
+
+        /* Expanded View */
+        .album-details {
+            overflow: hidden;
+            display: flex;
+            gap: 15px;
+            padding: 0 12px;
+            opacity: 0;
+            transition: opacity 0.3s 0.1s;
+        }
+
+        .album.expanded .album-details {
+            padding-bottom: 15px;
+            padding-top: 5px;
+            opacity: 1;
+        }
+
+        .expanded-art {
+            width: 100px;
+            height: 100px;
+            background: var(--spine-color);
+            flex-shrink: 0;
+            border: 1px solid #000;
+            box-shadow: 3px 3px 5px rgba(0,0,0,0.5);
+        }
+
+        .track-list {
+            flex: 1;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: #bbb;
+        }
+
+        .track-item {
+            padding: 6px 0;
+            border-bottom: 1px solid #2a2a2e;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .track-item:hover { color: white; }
+
+        /* --- DECK (Keep previous styling) --- */
+        #deck {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: var(--deck-height);
+            background: var(--bg-deck);
+            border-top: 2px solid #333;
+            display: flex; align-items: center; padding: 0 15px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.7);
+            z-index: 100;
+        }
+        .deck-art { width: 44px; height: 44px; background: #222; border: 1px solid #444; margin-right: 15px; }
+        .deck-info {
+            flex: 1;
+            background: #000;
+            border: 1px inset #333;
+            height: 40px;
+            margin: 0 15px;
+            padding: 0 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: var(--accent-led);
+            font-family: var(--font-mono);
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+            overflow: hidden;
+        }
+
+        .deck-line1 { 
+            white-space: nowrap; 
+            font-size: 0.8em;
+            letter-spacing: 1px;
+        }
+
+        .deck-line2 { 
+            white-space: nowrap; 
+            font-size: 0.8em;
+            letter-spacing: 1px;
+        }
+
+
+        .deck-controls button { background: transparent; border: 1px solid #444; color: var(--accent-led); width: 40px; height: 40px; margin-left: 10px; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+    <header id="controls">
+        <div class="app-title">LIBRARY // 1.0</div>
+        <select class="sort-select" onchange="updateSort(this.value)">
+            <option value="artist">Sort: Artist</option>
+            <option value="album">Sort: Album</option>
+            <option value="year">Sort: Year</option>
+        </select>
+    </header>
+
+    <div id="shelf"></div>
+
+    <div id="deck">
+        <div class="deck-art"></div>
+        <div class="deck-info">
+            <span class="deck-line1">READY</span>
+            <span class="deck-line2">NO MEDIA LOADED</span>
+        </div>
+        <div class="deck-controls">
+            <button>||</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DATA STORE ---
+        // In the real app, this would be populated by your fetch() call.
+        let state = {
+            albums: [],
+            sortBy: 'artist' // 'artist', 'album', 'year'
+        };
+
+        // --- 2. TEMPLATES (The "View") ---
+        
+        // Generates the HTML string for a single album
+        // Note how we switch primary/secondary text based on sort mode
+        const AlbumTemplate = (album, sortMode) => {
+            let primary, secondary;
+            
+            // Adjust visual hierarchy based on sort mode
+            if (sortMode === 'album') {
+                primary = album.title;
+                secondary = album.artist;
+            } else {
+                primary = album.artist;
+                secondary = album.title;
+            }
+
+            const tracksHtml = album.tracks.map(t => 
+              `<li class="track-item" onclick="playTrack('${t.name.replace(/'/g, "\\'")}', '${album.title}', '${album.artist}')">
+                    <span>${t.num < 10 ? '0'+t.num : t.num} ${t.name}</span>
+                    <span>${t.dur}</span>
+                 </li>`
+            ).join('');
+
+            return `
+                <div class="album" style="--spine-color: ${album.color};" onclick="toggleAlbum(this)">
+                    <div class="album-header">
+                        <div class="album-info-inline">
+                            <span class="primary-text">${primary}</span>
+                            <span class="secondary-text">${secondary}</span>
+                            <span class="meta-text">${album.year}</span>
+                        </div>
+                    </div>
+                    <div class="album-details">
+                        <div class="expanded-art"></div>
+                        <ul class="track-list">${tracksHtml}</ul>
+                    </div>
+                </div>
+            `;
+        };
+
+        // --- 3. LOGIC (The "Controller") ---
+
+        function renderLibrary() {
+            const shelf = document.getElementById('shelf');
+            shelf.innerHTML = ''; // Clear current DOM
+
+            // Sort Data
+            const sorted = [...state.albums].sort((a, b) => {
+                if (state.sortBy === 'artist') return a.artist.localeCompare(b.artist) || a.year - b.year;
+                if (state.sortBy === 'album') return a.title.localeCompare(b.title);
+                if (state.sortBy === 'year') return b.year - a.year || a.artist.localeCompare(b.artist);
+                return 0;
+            });
+
+            let currentSection = '';
+
+            sorted.forEach(album => {
+                // Determine Section Header (A, B, C or 1990s, 2000s)
+                let sectionKey = '';
+                
+                if (state.sortBy === 'year') {
+                    sectionKey = Math.floor(album.year / 10) * 10 + "s"; // "1990s"
+                } else if (state.sortBy === 'album') {
+                    sectionKey = album.title.charAt(0).toUpperCase();
+                } else {
+                    sectionKey = album.artist.toUpperCase();
+                }
+
+                if (sectionKey !== currentSection) {
+                    currentSection = sectionKey;
+                    const header = document.createElement('div');
+                    header.className = 'section-header';
+                    header.innerText = currentSection;
+                    shelf.appendChild(header);
+                }
+
+                // Inject HTML using the Template
+                // We use 'insertAdjacentHTML' for performance over innerHTML +=
+                shelf.insertAdjacentHTML('beforeend', AlbumTemplate(album, state.sortBy));
+            });
+        }
+
+        function updateSort(mode) {
+            state.sortBy = mode;
+            renderLibrary(); // Re-run the render loop
+        }
+
+        function toggleAlbum(el) {
+            const isExpanded = el.classList.contains('expanded');
+            // Simultaneous collapse/expand logic
+            document.querySelectorAll('.album.expanded').forEach(item => {
+                if(item !== el) item.classList.remove('expanded');
+            });
+            if (!isExpanded) el.classList.add('expanded');
+            
+            if(!isExpanded) {
+                 setTimeout(() => {
+                    el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }, 300);
+            }
+        }
+
+        function playTrack(name, title, artist) {
+            event.stopPropagation();
+          document.querySelector('.deck-line1').innerText = "> " + name.toUpperCase();
+            document.querySelector('.deck-line2').innerText = artist.toUpperCase() + ": " + title.toUpperCase();
+            
+            // Grab color from the parent album
+            const color = document.querySelector('.album.expanded').style.getPropertyValue('--spine-color');
+            document.querySelector('.deck-art').style.backgroundColor = color;
+        }
+
+        // --- 4. INITIALIZATION / MOCK DATA ---
+        
+        function init() {
+            // Mock Data Generation
+            const artists = ["Aphex Twin", "Boards of Canada", "Can", "Daft Punk", "Eno, Brian", "Kraftwerk", "Massive Attack", "Miles Davis", "Pink Floyd", "Radiohead", "Talking Heads", "Underworld", "Vangelis", "Zero 7"];
+            const albums = ["Selected Ambient Works", "Music has the Right", "Future Days", "Discovery", "Ambient 1", "Computer World", "Mezzanine", "Kind of Blue", "Dark Side of the Moon", "OK Computer", "Remain in Light", "Dubnobasswithmyheadman", "Blade Runner", "Simple Things"];
+            
+            const randomDate = () => Math.floor(Math.random() * (2023 - 1970 + 1)) + 1970;
+            const stringToColor = (str) => {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+                return '#' + "00000".substring(0, 6 - c.length) + c;
+            }
+
+            for(let i=0; i<80; i++) {
+                const artist = artists[Math.floor(Math.random() * artists.length)];
+                const title = albums[Math.floor(Math.random() * albums.length)];
+                state.albums.push({
+                    id: i,
+                    artist: artist,
+                    title: title,
+                    year: randomDate(),
+                    color: stringToColor(artist + title), 
+                    tracks: Array.from({length: 5}, (_, k) => ({num: k+1, name: `Track ${k+1}`, dur: '3:00'}))
+                });
+            }
+            
+            // Initial Render
+            renderLibrary();
+        }
+
+        init();
+    </script>
+</body>
+</html>
