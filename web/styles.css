@@ -1,0 +1,34 @@
+:root {
+    --primary-fg: #fff;
+    --primary-bg: #000;
+    --secondary-fg: #8f8;
+    --secondary-bg: #222;
+    --tertiary-fg: #f88;
+    --tertiary-bg: #444;
+}
+
+body {
+    margin: 0;
+    color: yellow;
+    background: magenta;
+    font-family: monospace;
+    overflow: hidden;
+    height: 100vh;
+}
+
+h1 {
+    color: var(--primary-fg);
+    background: var(--primary-bg);
+}
+
+h2 {
+    color: var(--secondary-fg);
+    background: var(--secondary-bg);
+}
+
+h3 {
+    color: var(--tertiary-fg);
+    background: var(--tertiary-bg);
+}
+
+
