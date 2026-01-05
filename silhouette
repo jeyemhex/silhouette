@@ -79,6 +79,22 @@ local function http_handler(skt)
                 current_song:pause()
                 body = "OK"
 
+            elseif path == "/api/playpause" then
+                if current_song.state == UNLOADED then
+                    if filename then
+                        current_song:load(filename)
+                        current_song:start()
+                    end
+                elseif current_song.state == STOPPED then
+                    current_song:start()
+
+                elseif current_song.state == PLAYING then
+                    current_song:pause()
+                else
+                    current_song.state = PLAYING
+                end
+                body = "OK"
+
             elseif path == "/api/stop" then
                 current_song:stop()
                 body = "OK"

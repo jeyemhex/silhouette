@@ -5,30 +5,213 @@
     --secondary-bg: #222;
     --tertiary-fg: #f88;
     --tertiary-bg: #444;
+
+    --accent-led: #00ff41;
+
+    --console-height: 48px;
+    --header-height: 32px;
+
+    --anim-speed: 0.35s;
+    --mech-ease: cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 body {
     margin: 0;
     color: yellow;
     background: magenta;
-    font-family: monospace;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
     overflow: hidden;
     height: 100vh;
 }
 
-h1 {
-    color: var(--primary-fg);
-    background: var(--primary-bg);
+/* Main container */
+#app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
 }
 
-h2 {
-    color: var(--secondary-fg);
-    background: var(--secondary-bg);
+/* Viewport */
+#viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
 }
 
-h3 {
-    color: var(--tertiary-fg);
-    background: var(--tertiary-bg);
+/* Layers */
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 20px;
+
+  transform: translateX(-100vw);
+  border-style: solid;
+  border-color: green;
+
+  /* Default state: hidden below */
+  transition: transform var(--anim-speed) var(--mech-ease), opacity var(--anim-speed) ease;
+  will-change: transform;
 }
 
+.left-layer {
+  transform: translateX(-100vw);
+}
+
+.right-layer {
+  transform: translateX(100vw);
+}
+
+.bottom-layer {
+  transform: translateY(100vh);
+}
+
+/* Player components */
+#player-layer {
+  z-index: 10;
+
+  color: var(--primary-fg);
+  background-color: var(--primary-bg);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  transform: translateX(0);
+  transition: filter 0.3s;
+}
+
+.view-header {
+  height: var(--header-height);
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid red;
+  z-index: 10;
+
+}
+
+#active-album-view {
+  flex: 1;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  overflow-y: scroll;
+  width: 90%;
+}
+
+#album-art {
+  margin: 20px;
+  border-style: solid;
+
+  width: 80%;
+  max-width: 300px;
+  max-height: 50vh;
+  aspect-ratio: 1/1;
+  height: auto;
+
+  background: #b89;
+  border-color: white;
+}
+
+/* Library components */
+#library-layer {
+  z-index: 20;
+
+  inset: 5%;
+  width: auto;
+  height: auto;
+
+  color: var(--secondary-fg);
+  background-color: var(--secondary-bg);
+
+  align-items: top;
+  justify-content: space-between;
+}
+
+/* Settings components */
+#settings-layer {
+  z-index: 30;
+
+  inset: 10%;
+  width: auto;
+  height: auto;
+
+  color: var(--secondary-fg);
+  background-color: var(--secondary-bg);
+
+  align-items: top;
+  justify-content: space-between;
+}
+
+#notification-layer {
+  z-index: 30;
+
+  inset: 20%;
+  width: auto;
+  height: auto;
+
+  color: var(--secondary-fg);
+  background-color: var(--secondary-bg);
+
+  align-items: top;
+  justify-content: space-between;
+}
+
+.layer.active-layer {
+  transform: translate(0,0);
+}
+
+body.overlay-open #player-layer {
+  filter: blur(5px) brightness(0.5);
+}
+
+/* Console */
+#console {
+  color: var(--tertiary-fg);
+  background: var(--tertiary-bg);
+
+  height: var(--console-height);
+  border-top: 2px solid red;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 10px 20px;
+  z-index: 10;
+
+}
+
+.console-button {
+  height: 36px;
+  width: 32px;
+}
+
+#vfd-display {
+    flex: 1;
+    background: #000;
+    height: 40px;
+    margin: 0 5px;
+    border-radius: 5px;
+    padding: 0 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--accent-led);
+    font-family: var(--font-mono);
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+    overflow: hidden;
+}
+
+.vfd-text { 
+    white-space: nowrap; 
+    font-size: 0.8em;
+    letter-spacing: 1px;
+}
 
